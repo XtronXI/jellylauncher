@@ -1,0 +1,26 @@
+{
+    "server_url": "http://localhost:8096",
+    "api_key": "YOUR_API_KEY",
+    "linux": {
+        "data_dir": "/path/to/jellyfin_data",
+        "server_executable": "/path/to/jellyfin",
+        "db_path": "/path/to/jellyfin.db",
+        "paths": {
+            "WINDOWS_DATA_DIR": "LINUX_DATA_DIR",
+            "C:\\Path\\To\\Media\\Movies": "/path/to/media/Movies",
+            "C:\\Path\\To\\Media\\Anime": "/path/to/media/Anime",
+            "C:\\Path\\To\\Media\\Shows": "/path/to/media/Shows"
+        }
+    },
+    "windows": {
+        "data_dir": "C:\\Path\\To\\Jellyfin_Data",
+        "server_executable": "C:\\Path\\To\\Jellyfin\\jellyfin.exe",
+        "db_path": "C:\\Path\\To\\jellyfin.db",
+        "paths": {
+            "LINUX_DATA_DIR": "WINDOWS_DATA_DIR",
+            "/path/to/media/Movies": "C:\\Path\\To\\Media\\Movies",
+            "/path/to/media/Anime": "C:\\Path\\To\\Media\\Anime",
+            "/path/to/media/Shows": "C:\\Path\\To\\Media\\Shows"
+        }
+    }
+}
