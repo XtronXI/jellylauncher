@@ -1,13 +1,13 @@
 <h1 align="center">JellyLauncher</h1>
 <p align="center">
 <img alt="MIT License" src="https://img.shields.io/github/license/xtronxi/jellylauncher.svg"/>
-<img alt="Tag" src="https://img.shields.io/github/v/tag/xtronxi/jellylauncher.svg"/>`
+<img alt="Tag" src="https://img.shields.io/github/v/tag/xtronxi/jellylauncher.svg"/>
 
-JellyLancher is a launcher for the [Jellyfin](https://jellyfin.org) media server, designed for **dual-boot systems**. It lets a single Jellyfin instance, its database, and its metadata be shared between **Linux** and **Windows**. Every time you boot into the other operating system, JellyLauncher automatically migrates Jellyfin's on-disk state so both OSes keep working against the same data with no re-scanning, re-linking, or loss of watch history.
+JellyLauncher is a launcher for the [Jellyfin](https://jellyfin.org) media server, designed for **dual-boot systems**. It lets a single Jellyfin instance, its database, and its metadata be shared between **Linux** and **Windows**. Every time you boot into the other operating system, JellyLauncher automatically migrates Jellyfin's on-disk state so both OSes keep working against the same data with no re-scanning, re-linking, or loss of watch history.
 
 ## Why a launcher?
 
-Jellyfin computes an item's ID (GUID) by hashing its **item type + absolute filesystem path**. Because media lives at different paths on each OS (for example `/mnt/stream/D-Stream/Movies` on Linux vs `D:\D-Stream\Movies` on Windows), **every item's GUID changes whenever you switch operating systems**. A plain shared data folder is therefore not enough — without intervention:
+Jellyfin computes an item's ID (GUID) by hashing its **item type + absolute filesystem path**. Because media lives at different paths on each OS (for example `/path/to/media/Movies` on Linux vs `C:\Path\To\Media\Movies` on Windows), **every item's GUID changes whenever you switch operating systems**. A plain shared data folder is therefore not enough — without intervention:
 
 - every reference to an item ID in the database breaks (watch state, playlists, favorites, collections),
 - on-disk metadata folders end up under GUID names that no longer match the database,
@@ -48,7 +48,7 @@ The launcher must know the **corresponding paths on the other OS** — this mapp
 
 ### Configuration
 
-Copy `config.example.json` to `config.json` and fill in your values. It has three parts:
+Reame `config.example.json` to `config.json` and fill in your values. It has three parts:
 
 | Key | Purpose |
 | --- | --- |
@@ -61,25 +61,25 @@ The `paths` mapping is the core of the migration. Each entry translates a path a
 ```jsonc
 {
   "linux": {
-    "data_dir": "/mnt/stream/Jellyfin/Data",
-    "server_executable": "/usr/lib/jellyfin/jellyfin",
-    "db_path": "/mnt/stream/Jellyfin/Data/data/jellyfin.db",
+    "data_dir": "/path/to/jellyfin_data",
+    "server_executable": "/path/to/jellyfin",
+    "db_path": "/path/to/jellyfin.db",
     "paths": {
-      "D:\\Jellyfin\\Data":            "/mnt/stream/Jellyfin/Data",
-      "D:\\D-Stream\\Movies":          "/mnt/stream/D-Stream/Movies",
-      "D:\\D-Stream\\Anime":           "/mnt/stream/D-Stream/Anime",
-      "D:\\D-Stream\\Shows":           "/mnt/stream/D-Stream/Shows"
+      "C:\\Path\\To\\Jellyfin_Data":    "/path/to/jellyfin_data",
+      "C:\\Path\\To\\Media\\Movies":    "/path/to/media/Movies",
+      "C:\\Path\\To\\Media\\Anime":     "/path/to/media/Anime",
+      "C:\\Path\\To\\Media\\Shows":     "/path/to/media/Shows"
     }
   },
   "windows": {
-    "data_dir": "D:\\Jellyfin\\Data",
-    "server_executable": "D:\\Jellyfin\\server\\jellyfin.exe",
-    "db_path": "D:\\Jellyfin\\Data\\data\\jellyfin.db",
+    "data_dir": "C:\\Path\\To\\Jellyfin_Data",
+    "server_executable": "C:\\Path\\To\\Jellyfin\\jellyfin.exe",
+    "db_path": "C:\\Path\\To\\jellyfin.db",
     "paths": {
-      "/mnt/stream/Jellyfin/Data":     "D:\\Jellyfin\\Data",
-      "/mnt/stream/D-Stream/Movies":   "D:\\D-Stream\\Movies",
-      "/mnt/stream/D-Stream/Anime":    "D:\\D-Stream\\Anime",
-      "/mnt/stream/D-Stream/Shows":    "D:\\D-Stream\\Shows"
+      "/path/to/jellyfin_data":        "C:\\Path\\To\\Jellyfin_Data",
+      "/path/to/media/Movies":         "C:\\Path\\To\\Media\\Movies",
+      "/path/to/media/Anime":          "C:\\Path\\To\\Media\\Anime",
+      "/path/to/media/Shows":          "C:\\Path\\To\\Media\\Shows"
     }
   }
 }
@@ -90,7 +90,7 @@ The Windows and Linux `paths` entries must be **mirror images of each other**: e
 ### Installation
 
 1. Clone or copy the project to a location reachable from both OSes.
-2. Copy `config.example.json` to `config.json` and fill in your values (see [Configuration](#configuration)).
+2. Rename `config.example.json` to `config.json` and fill in your values (see [Configuration](#configuration)).
 3. Install the dependencies (see [Requirements](#requirements)).
 
 ### Running

@@ -269,7 +269,7 @@ def guids(context, db=None):
     between operating systems, and rewrite all references across the database.
 
     Only items whose filesystem path actually changes are migrated
-    (e.g. /mnt/stream/... <-> D:\\...). Internal items (root folders,
+    (e.g. /path/to/media/... <-> C:\\Path\\To\\Media\\...). Internal items (root folders,
     CollectionFolders, People/Genres/Studios) derive their Id from a
     data-dir-relative key and are stable, so they are skipped.
 
