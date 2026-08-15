@@ -2,6 +2,7 @@ import hashlib, json, platform, re, uuid, shutil, argparse
 import xml.etree.ElementTree as ET
 from pathlib import Path, PureWindowsPath, PurePosixPath
 from modules import ui, process
+from modules.errors import ConfigError
 
 class Context:
     def __init__(self):
@@ -19,6 +20,66 @@ class Context:
         self.jellyfin_version = None
         self.jellyfin_process = None
 
+def validate_config(config):
+    if not isinstance(config, dict):
+        raise ConfigError("config.json must contain a JSON object.")
+
+    # Top-level required keys
+    required = {
+        "server_url": str,
+        "api_key": str,
+        "linux": dict,
+        "windows": dict,
+    }
+
+    for key, expected_type in required.items():
+        if key not in config:
+            raise ConfigError(
+                f"Missing required configuration key: {key}"
+            )
+
+        if not isinstance(config[key], expected_type):
+            raise ConfigError(
+                f"Configuration key '{key}' must be "
+                f"{expected_type.__name__}."
+            )
+
+    # OS-specific configuration
+    for os_name in ("linux", "windows"):
+        os_config = config[os_name]
+
+        required_os = {
+            "data_dir": str,
+            "server_executable": str,
+            "db_path": str,
+            "paths": dict,
+        }
+
+        for key, expected_type in required_os.items():
+            if key not in os_config:
+                raise ConfigError(
+                    f"Missing required configuration key: "
+                    f"{os_name}.{key}"
+                )
+
+            if not isinstance(os_config[key], expected_type):
+                raise ConfigError(
+                    f"Configuration key '{os_name}.{key}' must be "
+                    f"{expected_type.__name__}."
+                )
+
+        for source, destination in os_config["paths"].items():
+            if not isinstance(source, str):
+                raise ConfigError(
+                    f"Configuration key '{os_name}.paths' "
+                    "contains a non-string source path."
+                )
+
+            if not isinstance(destination, str):
+                raise ConfigError(
+                    f"Configuration key '{os_name}.paths' "
+                    "contains a non-string destination path."
+                )
 
 def initialize():
     context = Context()
@@ -34,8 +95,17 @@ def initialize():
         raise RuntimeError(f"Unsupported OS: {system}")
 
     # Load config
-    with open("config.json", "r", encoding="utf-8") as f:
-        context.config = json.load(f)
+    try:
+        with open("config.json", "r", encoding="utf-8") as f:
+            context.config = json.load(f)
+    except FileNotFoundError:
+        raise ConfigError("config.json was not found.")
+    except json.JSONDecodeError as error:
+        raise ConfigError(
+            f"config.json contains invalid JSON: {error}"
+        ) from error
+
+    validate_config(context.config)
 
     os_config = context.config[context.os]
 
@@ -55,7 +125,8 @@ def initialize():
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="JellyLauncher"
+        prog="jellylauncher",
+        description="Migrate and launch Jellyfin.",
     )
 
     parser.add_argument(

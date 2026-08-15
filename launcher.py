@@ -1,54 +1,47 @@
 from common import *
 from modules import process, migrate, ui
+from modules.errors import JellyLauncherError
 import time, threading
 
 def main():
-    args = parse_args()
-    context=initialize()
-    context.verbose = args.verbose
-    context.jellyfin_version = process.get_version(context)
-    steps = []
+    try:
+        args = parse_args()
+        context=initialize()
+        context.verbose = args.verbose
+        context.jellyfin_version = process.get_version(context)
+        steps = []
 
-    if context.os == "linux":
-        threading.Thread(
-            target=process._refresh_sudo,
-            daemon=True,
-        ).start()
-    if args.stop:
-        ui.begin(["Stopping Jellyfin"], title="JELLYFIN")
-        try:
-            ui.start("Stopping Jellyfin")
+        if args.stop:
+            ui.begin(["Stopping Jellyfin"], title="JELLYFIN")
             process.stop(context)
-            ui.success("Stopping Jellyfin")
             ui.complete()
-        except Exception as error:
             ui.end()
-            ui.show_error(context, error)
             return
 
-        ui.end()
-        return
+        if context.os == "linux":
+            threading.Thread(
+                target=process._refresh_sudo,
+                daemon=True,
+            ).start()
 
-    ui.show_header()
-    ui.show_status(context)
+        ui.show_header()
+        ui.show_status(context)
 
-    steps.append("Stopping Jellyfin")
-    if context.data_dir.exists():
-        steps += [
-            "Migrating GUIDs",
-            "Migrating metadata",
-            "Migrating database",
-            "Migrating XML",
-            "Updating .mblink paths",
-        ]
-    else:
-        steps.append("Skipping migration as Data doesn't exist!")
+        steps.append("Stopping Jellyfin")
+        if context.data_dir.exists():
+            steps += [
+                "Migrating GUIDs",
+                "Migrating metadata",
+                "Migrating database",
+                "Migrating XML",
+                "Updating .mblink paths",
+            ]
+        else:
+            steps.append("Skipping migration as Data doesn't exist!")
 
-    ui.begin(steps)
-    try:
-        ui.start("Stopping Jellyfin")
+        ui.begin(steps)
+
         process.stop(context)
-        ui.success("Stopping Jellyfin")
         if context.data_dir.exists():
             migrate.guids(context)
             migrate.metadata(context)
@@ -70,11 +63,18 @@ def main():
                 process.stop(context)
                 break
             time.sleep(0.1)
-    except Exception as error:
+    except JellyLauncherError as error:
         ui.end()
-        ui.show_error(context, error)
+        ui.show_error(error)
+        return
+    except Exception:
+        ui.end()
         if context.verbose:
             raise
+        ui.show_error(
+            "An unexpected error occurred. "
+            "Run with --verbose for details.",
+        )
         return
 
 if __name__ == "__main__":

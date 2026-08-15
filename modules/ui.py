@@ -83,7 +83,7 @@ def show_status(context):
 
     console.print(panel, justify="center")
 
-def show_error(context, error):
+def show_error(error):
     console.print()
     console.print(
         Panel(

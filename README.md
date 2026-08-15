@@ -1,186 +1,118 @@
 # JellyLauncher
 
-A lightweight Python launcher and migration utility for Jellyfin.
+JellyLauncher is a launcher for the [Jellyfin](https://jellyfin.org) media server, designed for **dual-boot systems**. It lets a single Jellyfin instance, its database, and its metadata be shared between **Linux** and **Windows**. Every time you boot into the other operating system, JellyLauncher automatically migrates Jellyfin's on-disk state so both OSes keep working against the same data with no re-scanning, re-linking, or loss of watch history.
 
-JellyLauncher handles the process of stopping Jellyfin, migrating Jellyfin data, and starting Jellyfin again while providing a clean terminal interface.
+## Why a launcher?
 
-## Features
+Jellyfin computes an item's ID (GUID) by hashing its **item type + absolute filesystem path**. Because media lives at different paths on each OS (for example `/mnt/stream/D-Stream/Movies` on Linux vs `D:\D-Stream\Movies` on Windows), **every item's GUID changes whenever you switch operating systems**. A plain shared data folder is therefore not enough — without intervention:
 
-- Rich terminal UI for migration progress
-- Jellyfin version detection
-- Cross-platform support for Linux and Windows
-- Jellyfin process management
-- Linux `systemctl` integration
-- Linux Jellyfin log output through `journalctl`
-- Graceful Windows Jellyfin shutdown using `CTRL_BREAK_EVENT`
-- Configurable Jellyfin executable and data paths
-- Optional verbose migration output
-- Migration stages with success/failure status
-- Elapsed migration time
+- every reference to an item ID in the database breaks (watch state, playlists, favorites, collections),
+- on-disk metadata folders end up under GUID names that no longer match the database,
+- embedded paths in the database, XML configuration, and `.mblink` link files all point at the other OS's paths.
+
+JellyLauncher fixes all of this automatically, and only when it is actually needed.
+
+## How the migration works
+
+Before starting the server, JellyLauncher stops Jellyfin (if running) and runs five migration passes in this order:
+
+1. **Migrating GUIDs** — Recomputes every item ID whose path differs between the two OSes, building an `old → new` GUID mapping. Every reference to those IDs is then rewritten across the entire database using a collision-safe two-phase rename, and `PresentationUniqueKey` / `SeriesPresentationUniqueKey` values are recalculated for affected items.
+2. **Migrating metadata** — Repairs stored metadata paths so they always point at the active `library` tree with a consistent `{prefix}/{guid}` folder layout, then physically renames and relocates metadata folders from their old-GUID names to their new-GUID names (searching both the active tree and the parked `linux_library` / `windows_library` trees).
+3. **Migrating database** — Translates every absolute path stored in any `TEXT` column of any table, including all paths embedded inside `BaseItems.Data` JSON blobs.
+4. **Migrating XML** — Rewrites paths in every XML file under the data directory (excluding `plugins/`) and removes duplicate `<PathInfos>` entries.
+5. **Updating .mblink paths** — Rewrites the path stored in every `.mblink` link file.
+
+### Idempotent by design
+
+Each pass is idempotent. When the paths already match the current OS (for example, booting the OS that last wrote the data), the translations produce no changes and the migration completes almost instantly. You can run it repeatedly with no side effects.
+
+The migration runs only when the configured data directory exists. If it doesn't, the launcher skips it and reports so.
 
 ## Requirements
 
-- Python 3.8 or newer
-- Jellyfin Server
-- Linux:
-  - `systemd`
-  - `sudo`
-- Windows:
-  - Windows console
-  - Jellyfin Server
+Before using the launcher, make sure the following are in place.
 
-Python dependencies are listed in `requirements.txt`.
+### 1. Take a backup
 
-## Installation
+Migrating a library modifies the database, metadata folders, XML files, and link files. Although the migration is designed to be idempotent and reversible by simply booting the other OS again, **take a full backup of your data directory before your first run**. Keep at least one known-good backup (e.g. the copy produced by the OS that set the library up) so you can always restore.
 
-Clone the repository:
+### 2. Share the same data directory (manual setup)
 
-```bash
-git clone <REPOSITORY_URL>
-cd JellyLauncher
-````
+Both operating systems must point at the **same physical data directory**. This is a manual, one-time setup — the launcher does not create or move your data:
 
-Create a virtual environment:
+- Put the Jellyfin data directory on a partition or drive that both OSes can read/write (NTFS is the usual choice on a dual-boot machine).
+- Install Jellyfin on **both** operating systems.
+- Point each OS's Jellyfin install at the shared data directory (via `--datadir`, the service configuration, or Jellyfin's own settings).
+- Make sure the media library paths are reachable from both OSes and set up so that each OS sees them at equivalent locations.
 
-### Linux
+The launcher must know the **corresponding paths on the other OS** — this mapping is configured in `config.json` (see [Configuration](#configuration)). If a path has no counterpart on the other OS, it is left untouched.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
+### 3. Install dependencies
 
-### Windows
-
-```powershell
-py -m venv .venv
-.venv\Scripts\activate
-```
-
-Install the dependencies:
-
-```bash
-python -m pip install -r requirements.txt
-```
+- **Python 3** on both operating systems.
+- The Python packages listed in `requirements.txt`:
+  ```
+  requests
+  rich
+  readchar
+  ```
+  Install them with:
+  ```
+  pip install -r requirements.txt
+  ```
+- **Linux**: a running `jellyfin` systemd service, and `sudo` rights (the launcher stops/starts the service with `systemctl` and refreshes sudo credentials in the background). `journalctl` is used to stream live logs.
+- **Windows**: Jellyfin's `jellyfin.exe` available at the path from the config (the launcher spawns it directly with the shared data directory).
 
 ## Configuration
 
-JellyLauncher uses a local `config.json` file.
+Rename `config.example.json` to `config.json` and fill in your values. It has three parts:
 
-A template is provided:
+| Key | Purpose |
+| --- | --- |
+| `server_url` | Jellyfin's HTTP API address (e.g. `http://localhost:8096`) |
+| `api_key` | An API key (used to detect when the server is running) of Jellyfin |
+| `linux` / `windows` | Per-OS settings: `data_dir`, `server_executable`, `db_path`, and the `paths` mapping |
 
-```text
-config.example.json
-```
-
-Copy it to:
-
-```text
-config.json
-```
-
-and edit the values for your Jellyfin installation.
-
-**Do not commit `config.json`.** It may contain private information such as your Jellyfin API key.
+The `paths` mapping is the core of the migration. Each entry translates a path as it exists on the other OS into the equivalent path on the current OS.
+The Windows and Linux `paths` entries must be **mirror images of each other**: every source path in one OS is a destination path in the other.
 
 ## Usage
 
-Run JellyLauncher with:
+Start the launcher from the project directory:
 
-```bash
+```
 python launcher.py
 ```
 
-For verbose migration information:
+The launcher will:
 
-```bash
-python launcher.py --verbose
-```
+1. show the current system status (Jellyfin version, OS, data directory, case-sensitivity),
+2. stop Jellyfin if it is running,
+3. run the migration passes (only if the data directory exists),
+4. start Jellyfin and stream its live logs.
 
-### Keyboard controls
+Press `S` to stop Jellyfin and exit cleanly.
 
-During the Jellyfin stage:
+| Command | Description |
+| --- | --- |
+| `python launcher.py` | Migrate (if needed) and start Jellyfin |
+| `python launcher.py --stop` | Stop Jellyfin and exit |
+| `python launcher.py --verbose` | Show per-file migration details |
 
-| Key | Action        |
-| --- | ------------- |
-| `S` | Stop Jellyfin |
+## What is migrated (details)
 
-## Platform behavior
+**GUIDs** — For every item with a stored path, the path is translated to the current OS's form. If it changes, the ID is recomputed using Jellyfin's own ID algorithm (`md5(type + path)` over UTF-16LE, honoring `EnableCaseSensitiveItemIds`). Internal items whose IDs are derived from data-dir-relative keys (root folders, `CollectionFolder`, `Person`/`Genre`/`Studio`) are stable and are skipped. The mapping is then applied to every GUID reference in the database — including comma-separated lists such as `ExtraIds` and GUIDs nested in JSON — preserving each token's original dash style and case. `BaseItems.Id` is rewritten through a `PARK:` staging step so that swaps (e.g. `A → B` and `B → C`) cannot collide. Finally, `PresentationUniqueKey` and `SeriesPresentationUniqueKey` are recalculated for changed items (Seasons use `{seriesKey}-{IndexNumber:000}`); stable name-based keys are left as-is.
 
-### Linux
+**Metadata paths** — Every `TEXT` cell containing a metadata path is normalized so it references the active `library` tree with a `{prefix}/{guid}` layout whose two-character prefix matches the GUID itself. This repairs the stale prefixes a GUID rewrite can otherwise leave behind. The corresponding on-disk folders are then located (under old-GUID names in the active tree or in the parked `linux_library` / `windows_library` trees) and moved into place under their new-GUID names.
 
-JellyLauncher uses the system Jellyfin service:
+**Database paths** — Every absolute path in every `TEXT` column is translated to the current OS's form. `BaseItems.Data` JSON blobs are walked recursively so paths nested anywhere inside them are translated too.
 
-```text
-systemctl start jellyfin
-systemctl stop jellyfin
-```
+**XML** — Every XML file under the data directory (except `plugins/`) has its text content scanned for translatable paths, and duplicate `<PathInfos>` entries are removed.
 
-Jellyfin output is read from `journalctl` and displayed using Rich formatting.
-
-### Windows
-
-JellyLauncher starts Jellyfin as a child process and places it in its own Windows process group.
-
-Pressing `S` sends a `CTRL_BREAK_EVENT` to the Jellyfin process group, allowing Jellyfin to perform its normal shutdown handling.
-
-## Migration
-
-The migration process currently consists of several stages, including:
-
-* GUID migration
-* Metadata migration
-* Database migration
-* XML migration
-* `.mblink` path updates
-
-JellyLauncher stops Jellyfin before modifying its data and starts it again after migration.
-
-### Jellyfin compatibility
-
-Database and other internal Jellyfin structures can change between Jellyfin releases.
-
-JellyLauncher should therefore only be considered compatible with Jellyfin versions that have been explicitly tested.
-
-Do not assume that a future Jellyfin release is automatically supported.
-
-**Back up your Jellyfin data before performing a migration.**
-
-## Project structure
-
-```text
-JellyLauncher/
-├── launcher.py
-├── migrate.py
-├── config.example.json
-├── requirements.txt
-├── README.md
-├── .gitignore
-└── modules/
-    ├── __init__.py
-    ├── process.py
-    └── ui.py
-```
-
-## Development
-
-Create a virtual environment and install the dependencies as described above.
-
-Run JellyLauncher directly:
-
-```bash
-python launcher.py
-```
-
-Before making changes to migration logic, test against a copy or backup of your Jellyfin data.
+**`.mblink` files** — The stored link target of every `.mblink` file is rewritten to the current OS's path.
 
 ## License
 
-Add your chosen license here.
+This project is licensed under the **MIT License**.
 
-For example:
-
-```text
-MIT License
-```
-
-See `LICENSE` for the full license text.
+This project is an independent launcher and is not affiliated with the Jellyfin project. Jellyfin is a trademark of the Jellyfin project.
