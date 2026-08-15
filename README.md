@@ -1,16 +1,10 @@
 <h1 align="center">JellyLauncher</h1>
 
-<div align="center">
-  <a href="https://github.com/XtronXI/jellylauncher/releases">
-    <img src="https://img.shields.io/badge/version-2.1.0-blue" alt="Version 2.1.0"/>
-  </a>
-  <a href="https://github.com/XtronXI/jellylauncher">
-    <img src="https://img.shields.io/badge/python-3.x-yellow" alt="Python 3.x"/>
-  </a>
-  <a href="https://github.com/XtronXI/jellylauncher/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License"/>
-  </a>
-</div>
+<p align="center">
+<a href="https://github.com/XtronXI/jellylauncher/releases"><img src="https://img.shields.io/badge/version-2.1.0-blue.svg" alt="Version 2.1.0"/></a>
+<a href="https://github.com/XtronXI/jellylauncher"><img src="https://img.shields.io/badge/python-3.x-yellow.svg" alt="Python 3.x"/></a>
+<a href="https://github.com/XtronXI/jellylauncher/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License"/></a>
+</p>
 
 JellyLauncher is a launcher for the [Jellyfin](https://jellyfin.org) media server, designed for **dual-boot systems**. It lets a single Jellyfin instance, its database, and its metadata be shared between **Linux** and **Windows**. Every time you boot into the other operating system, JellyLauncher automatically migrates Jellyfin's on-disk state so both OSes keep working against the same data with no re-scanning, re-linking, or loss of watch history.
 
