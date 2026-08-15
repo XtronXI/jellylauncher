@@ -1,9 +1,12 @@
 <h1 align="center">JellyLauncher</h1>
-<p align="center">
-<img alt="MIT License" src="https://img.shields.io/github/license/xtronxi/jellylauncher.svg"/>
-<img alt="Tag" src="https://img.shields.io/github/v/tag/xtronxi/jellylauncher.svg"/>
+<p align="center"/>
+![Version](https://img.shields.io/badge/version-2.1.0-blue")
+![Python](https://img.shields.io/badge/python-3.x-yellow")
+![License](https://img.shields.io/badge/license-MIT-green)
 
 JellyLauncher is a launcher for the [Jellyfin](https://jellyfin.org) media server, designed for **dual-boot systems**. It lets a single Jellyfin instance, its database, and its metadata be shared between **Linux** and **Windows**. Every time you boot into the other operating system, JellyLauncher automatically migrates Jellyfin's on-disk state so both OSes keep working against the same data with no re-scanning, re-linking, or loss of watch history.
+
+![Preview](preview/preview.png)
 
 ## Why a launcher?
 
