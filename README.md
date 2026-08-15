@@ -1,9 +1,9 @@
 <h1 align="center">JellyLauncher</h1>
 <p align="center">
-!["MIT License"]("https://img.shields.io/github/license/xtronxi/jellylauncher.svg")
-!["Tag"](https://img.shields.io/github/v/tag/xtronxi/jellylauncher.svg)
+<img alt="MIT License" src="https://img.shields.io/github/license/xtronxi/jellylauncher.svg"/>
+<img alt="Tag" src="https://img.shields.io/github/v/tag/xtronxi/jellylauncher.svg"/>`
 
-JellyLauncher is a launcher for the [Jellyfin](https://jellyfin.org) media server, designed for **dual-boot systems**. It lets a single Jellyfin instance, its database, and its metadata be shared between **Linux** and **Windows**. Every time you boot into the other operating system, JellyLauncher automatically migrates Jellyfin's on-disk state so both OSes keep working against the same data with no re-scanning, re-linking, or loss of watch history.
+JellyLancher is a launcher for the [Jellyfin](https://jellyfin.org) media server, designed for **dual-boot systems**. It lets a single Jellyfin instance, its database, and its metadata be shared between **Linux** and **Windows**. Every time you boot into the other operating system, JellyLauncher automatically migrates Jellyfin's on-disk state so both OSes keep working against the same data with no re-scanning, re-linking, or loss of watch history.
 
 ## Why a launcher?
 
