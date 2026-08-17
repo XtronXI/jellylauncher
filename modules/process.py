@@ -1,4 +1,4 @@
-import platform, subprocess, requests, time, threading, signal
+import subprocess, requests, time, threading, signal
 from modules import ui
 from modules.errors import ProcessError
 
@@ -8,9 +8,7 @@ def is_running(context):
             context.server_url + "/System/Info/Public",
             timeout=1
         )
-
-        return response.ok
-
+        return True
     except requests.RequestException:   
         return False
 
@@ -18,13 +16,13 @@ def stop(context):
     ui.start("Stopping Jellyfin")
     try:
         if is_running(context):
-            if context.os == "windows":
-                context.jellyfin_process.send_signal(signal.CTRL_BREAK_EVENT)
-            elif context.os == "linux":
-                subprocess.run(
-                    ["sudo", "-n", "systemctl", "stop", "jellyfin"],
-                    check=True,
-                )
+            response = requests.post(
+                context.server_url + "/System/Shutdown",
+                headers=context.headers,
+                timeout=5,
+            )
+            response.raise_for_status()
+            
             timeout = 30
             start_time = time.monotonic()
 
@@ -48,20 +46,46 @@ def _read_jellyfin_output(context):
 
 def start(context, timeout=30):
     try:
-        if context.os == "windows":
-            context.jellyfin_process = subprocess.Popen([
-                str(context.server_executable),
-                "--datadir",
-                str(context.data_dir)
-                ],
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
-            )
+        if context.runtime == "process":
+            if context.os == "windows":
+                context.jellyfin_process = subprocess.Popen(
+                    [
+                        str(context.server_executable),
+                        "--datadir",
+                        str(context.data_dir),
+                    ],
+                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+                )
 
-        elif context.os == "linux":
+            elif context.os == "linux":
+                context.jellyfin_process = subprocess.Popen(
+                    [
+                        str(context.server_executable),
+                        "--datadir",
+                        str(context.data_dir),
+                    ]
+                )
+
+        elif context.runtime == "service":
+            if context.os == "linux":
+                subprocess.run(
+                    ["sudo", "systemctl", "start", context.service],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=True,
+                )
+            elif context.os == "windows":
+                subprocess.run(
+                    ["sc", "start", context.service],
+                    check=True,
+                )
+        
+        elif context.runtime == "container":
             subprocess.run(
-                ["sudo", "systemctl", "start", "jellyfin"]
+                [context.container_engine, "start", context.container],
+                check=True,
             )
-            start_time = time.monotonic()
+        start_time = time.monotonic()
 
         while not is_running(context):
             if time.monotonic() - start_time > timeout:
@@ -70,6 +94,7 @@ def start(context, timeout=30):
                     f"{timeout} seconds."
                 )
             time.sleep(0.5)
+    
     except Exception as error:
         raise ProcessError(
             f"Failed to start Jellyfin: {error}"
@@ -84,7 +109,6 @@ def start_logs(context):
             "-u", "jellyfin",
             "-f",
             "--no-pager",
-            #"-n", "50",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

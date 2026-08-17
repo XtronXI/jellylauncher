@@ -5,7 +5,7 @@ from rich.text import Text
 from rich.table import Table
 from rich.align import Align
 from rich.rule import Rule
-import json, platform, re, uuid, shutil, time, itertools, sys, threading, readchar
+import re, shutil, time, itertools, threading, readchar
 
 
 console=Console()
@@ -35,7 +35,6 @@ _panel_title = ""
 _stop_requested = threading.Event()
 
 def jellyfin_rule():
-    console = Console()
     console.print("")
     console.print(Rule("JELLYFIN", style="bold cyan"))
 
@@ -55,7 +54,7 @@ def show_header():
             print()
 
     print()
-    print("JellyLauncher v2.1.0  •  © 2026 XtronXI".center(terminal_width))
+    print("JellyLauncher v2.1.1  •  © 2026 XtronXI".center(terminal_width))
     print()
 
 def show_status(context):
@@ -218,9 +217,9 @@ def begin(steps, title="[bold cyan] MIGRATION [/bold cyan]"):
     _start_time = time.perf_counter()
 
     _live = Live(
-        Align.center(_render()),
         refresh_per_second=10,
         transient=False,
+        get_renderable=lambda: Align.center(_render()),
     )
 
     _live.start()
@@ -231,12 +230,6 @@ def end():
     if _live is not None:
         _live.stop()
         _live = None
-
-def elapsed():
-    if _start_time is None:
-        return 0
-
-    return time.perf_counter() - _start_time
 
 def complete():
     global _completed

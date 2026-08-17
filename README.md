@@ -20,83 +20,61 @@ Jellyfin computes an item's ID (GUID) by hashing its **item type + absolute file
 
 JellyLauncher fixes all of this automatically, and only when it is actually needed.
 
-## Requirements
+## Usage
 
-Before using the launcher, make sure the following are in place.
+> [!WARNING]
+> Migrating a library modifies the database, metadata folders, XML files, and link files. Although the migration is designed to be idempotent and reversible by simply booting the other OS again, **take a full backup of your data directory before your first run**. Keep at least one known-good backup (e.g. the copy produced by the OS that set the library up) so you can always restore.
 
-### 1. Take a backup
-
-Migrating a library modifies the database, metadata folders, XML files, and link files. Although the migration is designed to be idempotent and reversible by simply booting the other OS again, **take a full backup of your data directory before your first run**. Keep at least one known-good backup (e.g. the copy produced by the OS that set the library up) so you can always restore.
-
-### 2. Share the same data directory (manual setup)
+### Share the same data directory (manual setup)
 
 Both operating systems must point at the **same physical data directory**. This is a manual, one-time setup — the launcher does not create or move your data:
 
 - Put the Jellyfin data directory on a partition or drive that both OSes can read/write (NTFS is the usual choice on a dual-boot machine).
 - Install Jellyfin on **both** operating systems.
-- Point each OS's Jellyfin install at the shared data directory (via `--datadir`, the service configuration, or Jellyfin's own settings).
+- Point each OS's Jellyfin install at the shared data directory (via `--datadir` in the start-up command or the service configuration).
 - Make sure the media library paths are reachable from both OSes and set up so that each OS sees them at equivalent locations.
+- Start Jellyfin in either one of the systems, and ensure the other **hasn't been started, ever**.
 
 The launcher must know the **corresponding paths on the other OS** — this mapping is configured in `config.json` (see [Configuration](#configuration)). If a path has no counterpart on the other OS, it is left untouched.
 
-### 3. Install dependencies
+### Installation
+
+1. Clone or copy the project to a location reachable from both OSes.
+2. Install the dependencies:
 
 - **Python 3** on both operating systems.
 - The Python packages listed in `requirements.txt` (`requests`, `rich`, `readchar`). Install them with:
   ```
   pip install -r requirements.txt
   ```
-- **Linux**: a running `jellyfin` systemd service, and `sudo` rights (the launcher stops/starts the service with `systemctl` and refreshes sudo credentials in the background). `journalctl` is used to stream live logs.
-- **Windows**: Jellyfin's `jellyfin.exe` available at the path from the config (the launcher spawns it directly with the shared data directory).
+- **Linux**: Jellyfin's `jellyfin` executable available at the path from the config.
+- **Windows**: Jellyfin's `jellyfin.exe` available at the path from the config.
+3. Rename `config.example.json` to `config.json` and fill in your values (see [Configuration](#configuration)).
 
-## Usage
+> [!NOTE]
+> Only **Linux** and **Windows** are supported. macOS is not currently supported but may be added in a future release. Custom launchers, container orchestrators (e.g. Kubernetes), and other external service managers are not supported — the launcher expects to manage Jellyfin directly via `systemctl` or by spawning the executable.
 
 ### Configuration
 
-Reame `config.example.json` to `config.json` and fill in your values. It has three parts:
+Rename `config.example.json` to `config.json` and fill in your values. It has four parts:
 
 | Key | Purpose |
 | --- | --- |
 | `server_url` | Jellyfin's HTTP API address (e.g. `http://localhost:8096`) |
 | `api_key` | An API key (used to detect when the server is running) |
-| `linux` / `windows` | Per-OS settings: `data_dir`, `server_executable`, `db_path`, and the `paths` mapping |
+| `linux` / `windows` | Per-OS settings: `data_dir`, `server_executable`, `runtime`, and optional `service`/`container` fields (see below) |
+| `paths` | Maps each path on the other OS to its equivalent on the current OS (see below) |
 
-The `paths` mapping is the core of the migration. Each entry translates a path as it exists on the other OS into the equivalent path on the current OS:
+The `runtime` field controls how the launcher starts and stops Jellyfin. **`manual` (default) is recommended** for most setups:
 
-```jsonc
-{
-  "linux": {
-    "data_dir": "/path/to/jellyfin_data",
-    "server_executable": "/path/to/jellyfin",
-    "db_path": "/path/to/jellyfin.db",
-    "paths": {
-      "C:\\Path\\To\\Jellyfin_Data":    "/path/to/jellyfin_data",
-      "C:\\Path\\To\\Media\\Movies":    "/path/to/media/Movies",
-      "C:\\Path\\To\\Media\\Anime":     "/path/to/media/Anime",
-      "C:\\Path\\To\\Media\\Shows":     "/path/to/media/Shows"
-    }
-  },
-  "windows": {
-    "data_dir": "C:\\Path\\To\\Jellyfin_Data",
-    "server_executable": "C:\\Path\\To\\Jellyfin\\jellyfin.exe",
-    "db_path": "C:\\Path\\To\\jellyfin.db",
-    "paths": {
-      "/path/to/jellyfin_data":        "C:\\Path\\To\\Jellyfin_Data",
-      "/path/to/media/Movies":         "C:\\Path\\To\\Media\\Movies",
-      "/path/to/media/Anime":          "C:\\Path\\To\\Media\\Anime",
-      "/path/to/media/Shows":          "C:\\Path\\To\\Media\\Shows"
-    }
-  }
-}
-```
+| Value | Description |
+| --- | --- |
+| `manual` | The launcher manages Jellyfin directly — `systemctl` on Linux, spawns the executable on Windows. |
+| `process` | Spawns `jellyfin.exe` directly on both OSes. |
+| `service` | Manages Jellyfin as a system service. On Linux, requires `sudo` and a systemd unit; on Windows, use the **service name** (not the display name). |
+| `container` | Manages Jellyfin as a container. Requires `container` (name) and `container_engine` (e.g. `docker`) to be set in your OS config. |
 
-The Windows and Linux `paths` entries must be **mirror images of each other**: every source path in one OS is a destination path in the other.
-
-### Installation
-
-1. Clone or copy the project to a location reachable from both OSes.
-2. Rename `config.example.json` to `config.json` and fill in your values (see [Configuration](#configuration)).
-3. Install the dependencies (see [Requirements](#requirements)).
+The `paths` mapping is the core of the migration. Each entry translates a path as it exists on the other OS into the equivalent path on the current OS. Paths with no counterpart on the other OS are left untouched.
 
 ### Running
 
@@ -120,11 +98,6 @@ Press `S` to stop Jellyfin and exit cleanly.
 | `python launcher.py` | Migrate (if needed) and start Jellyfin |
 | `python launcher.py --stop` | Stop Jellyfin and exit |
 | `python launcher.py --verbose` | Show per-file migration details |
-
-Convenience wrapper scripts are also included:
-
-- **Linux** — `./jellyfin.sh` (prompts to start or stop, runs the launcher with `sudo`).
-- **Windows** — `jellyfin.bat` (runs `py launcher.py`).
 
 ## How the migration works
 

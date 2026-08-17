@@ -281,7 +281,6 @@ def guids(context, db=None):
         db = Path(db) if db is not None else context.data_dir / "data" / "jellyfin.db"
         if not db.exists():
             ui.verbose(context, "Database not found - skipping.")
-            ui.fail("Migrating metadata")
             raise FileNotFoundError(f"Database not found: {db}")
 
         conn = sqlite3.connect(db)

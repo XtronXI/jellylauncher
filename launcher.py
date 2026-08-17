@@ -26,7 +26,6 @@ def main():
 
         ui.show_header()
         ui.show_status(context)
-
         steps.append("Stopping Jellyfin")
         if context.data_dir.exists():
             steps += [
@@ -40,7 +39,6 @@ def main():
             steps.append("Skipping migration as Data doesn't exist!")
 
         ui.begin(steps)
-
         process.stop(context)
         if context.data_dir.exists():
             migrate.guids(context)
@@ -51,6 +49,8 @@ def main():
             time.sleep(1)
         ui.complete()
         ui.end()
+        if context.runtime == "manual":
+            return
         ui.jellyfin_rule()
         process.start(context)            
         process.start_logs(context)

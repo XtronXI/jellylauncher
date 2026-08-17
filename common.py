@@ -1,7 +1,6 @@
-import hashlib, json, platform, re, uuid, shutil, argparse
+import hashlib, json, platform, re, uuid, argparse
 import xml.etree.ElementTree as ET
 from pathlib import Path, PureWindowsPath, PurePosixPath
-from modules import ui, process
 from modules.errors import ConfigError
 
 class Context:
@@ -10,9 +9,12 @@ class Context:
         self.config = None
         self.verbose = False
         self.data_dir = None
-        self.db_path = None
         self.server_executable = None
         self.paths = None
+        self.runtime = None
+        self.container = None
+        self.container_engine = None
+        self.service = None
         self.case_sensitive = True
         self.server_url = None
         self.api_key = None
@@ -30,6 +32,7 @@ def validate_config(config):
         "api_key": str,
         "linux": dict,
         "windows": dict,
+        "paths": dict,
     }
 
     for key, expected_type in required.items():
@@ -44,6 +47,19 @@ def validate_config(config):
                 f"{expected_type.__name__}."
             )
 
+    for source, destination in config["paths"].items():
+        if not isinstance(source, str):
+            raise ConfigError(
+                f"Configuration key '{os_name}.paths' "
+                "contains a non-string source path."
+            )
+
+        if not isinstance(destination, str):
+            raise ConfigError(
+                f"Configuration key '{os_name}.paths' "
+                "contains a non-string destination path."
+            )
+
     # OS-specific configuration
     for os_name in ("linux", "windows"):
         os_config = config[os_name]
@@ -51,8 +67,6 @@ def validate_config(config):
         required_os = {
             "data_dir": str,
             "server_executable": str,
-            "db_path": str,
-            "paths": dict,
         }
 
         for key, expected_type in required_os.items():
@@ -68,31 +82,8 @@ def validate_config(config):
                     f"{expected_type.__name__}."
                 )
 
-        for source, destination in os_config["paths"].items():
-            if not isinstance(source, str):
-                raise ConfigError(
-                    f"Configuration key '{os_name}.paths' "
-                    "contains a non-string source path."
-                )
-
-            if not isinstance(destination, str):
-                raise ConfigError(
-                    f"Configuration key '{os_name}.paths' "
-                    "contains a non-string destination path."
-                )
-
 def initialize():
     context = Context()
-
-    # Detect OS
-    system = platform.system()
-
-    if system == "Linux":
-        context.os = "linux"
-    elif system == "Windows":
-        context.os = "windows"
-    else:
-        raise RuntimeError(f"Unsupported OS: {system}")
 
     # Load config
     try:
@@ -107,17 +98,28 @@ def initialize():
 
     validate_config(context.config)
 
-    os_config = context.config[context.os]
+    # Detect OS
+    system = platform.system()
 
+    if system == "Linux":
+        context.os = "linux"
+        context.paths = context.config["paths"]
+    elif system == "Windows":
+        context.os = "windows"
+        context.paths = {v: k for k, v in context.config["paths"].items()}
+    else:
+        raise RuntimeError(f"Unsupported OS: {system}")
+
+    os_config = context.config[context.os]
     context.data_dir = Path(os_config["data_dir"])
     context.server_executable = Path(os_config["server_executable"])
-    context.db_path = Path(os_config["db_path"])
-    context.paths = os_config["paths"]
-
+    context.runtime = os_config["runtime"]
+    context.container = os_config.get("container")
+    context.container_engine = os_config.get("container_engine")
+    context.service = os_config.get("service")
     context.server_url = context.config["server_url"]
     context.api_key = context.config["api_key"]
     context.case_sensitive = _read_case_sensitive(context.data_dir)
-
     context.headers = {
         "X-Emby-Token": context.api_key
     }
