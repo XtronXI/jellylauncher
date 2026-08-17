@@ -52,7 +52,7 @@ The launcher must know the **corresponding paths on the other OS** — this mapp
 3. Rename `config.example.json` to `config.json` and fill in your values (see [Configuration](#configuration)).
 
 > [!NOTE]
-> Only **Linux** and **Windows** are supported. macOS is not currently supported but may be added in a future release. Custom launchers, container orchestrators (e.g. Kubernetes), and other external service managers are not supported — the launcher expects to manage Jellyfin directly via `systemctl` or by spawning the executable.
+> Only **Linux** and **Windows** are supported. macOS is not currently supported but may be added in a future release. Custom launchers, container orchestrators (e.g. Kubernetes), and other external service manager is supported, but **ensure runtime is set `manual` in `config.json`**, as auto-start and logging features are unavailable for them.
 
 ### Configuration
 
@@ -65,12 +65,12 @@ Rename `config.example.json` to `config.json` and fill in your values. It has fo
 | `linux` / `windows` | Per-OS settings: `data_dir`, `server_executable`, `runtime`, and optional `service`/`container` fields (see below) |
 | `paths` | Maps each path on the other OS to its equivalent on the current OS (see below) |
 
-The `runtime` field controls how the launcher starts and stops Jellyfin. **`manual` (default) is recommended** for most setups:
+The `runtime` field controls how the launcher starts Jellyfin. **`manual` (default) is recommended** for most setups:
 
 | Value | Description |
 | --- | --- |
-| `manual` | The launcher manages Jellyfin directly — `systemctl` on Linux, spawns the executable on Windows. |
-| `process` | Spawns `jellyfin.exe` directly on both OSes. |
+| `manual` | Skips the Jellyfin starting and log reading process. |
+| `process` | Spawns `jellyfin(.exe)` directly on both OSes. |
 | `service` | Manages Jellyfin as a system service. On Linux, requires `sudo` and a systemd unit; on Windows, use the **service name** (not the display name). |
 | `container` | Manages Jellyfin as a container. Requires `container` (name) and `container_engine` (e.g. `docker`) to be set in your OS config. |
 

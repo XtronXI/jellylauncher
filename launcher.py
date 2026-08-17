@@ -18,7 +18,7 @@ def main():
             ui.end()
             return
 
-        if context.os == "linux":
+        if context.os == "linux" and context.runtime == "service":
             threading.Thread(
                 target=process._refresh_sudo,
                 daemon=True,

@@ -22,16 +22,13 @@ def stop(context):
                 timeout=5,
             )
             response.raise_for_status()
-            
             timeout = 30
             start_time = time.monotonic()
-
             while is_running(context):
                 if time.monotonic() - start_time > timeout:
                     raise ProcessError(
                         "Timed out waiting for Jellyfin to stop."
                     )
-
                 time.sleep(1)
         ui.success("Stopping Jellyfin")
     except Exception as error:
@@ -44,11 +41,21 @@ def _read_jellyfin_output(context):
     for line in context.jellyfin_process.stdout:
         ui.jellyfin_log(line.rstrip())
 
+def _read_log_file(path):
+    with path.open("r", encoding="utf-8", errors="replace",) as file:
+        file.seek(0, 2)
+        while True:
+            line = file.readline()
+            if line:
+                ui.jellyfin_log(line.rstrip())
+            else:
+                time.sleep(0.1)
+
 def start(context, timeout=30):
     try:
         if context.runtime == "process":
             if context.os == "windows":
-                context.jellyfin_process = subprocess.Popen(
+                subprocess.Popen(
                     [
                         str(context.server_executable),
                         "--datadir",
@@ -56,9 +63,8 @@ def start(context, timeout=30):
                     ],
                     creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
                 )
-
             elif context.os == "linux":
-                context.jellyfin_process = subprocess.Popen(
+                subprocess.Popen(
                     [
                         str(context.server_executable),
                         "--datadir",
@@ -101,26 +107,53 @@ def start(context, timeout=30):
         ) from error
 
 def start_logs(context):
-    if context.os == "windows":
+    if context.runtime == "process":
         return
-    context.jellyfin_process = subprocess.Popen(
-        [
-            "journalctl",
-            "-u", "jellyfin",
-            "-f",
-            "--no-pager",
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
-    )
 
-    threading.Thread(
-        target=_read_jellyfin_output,
-        args=(context,),
-        daemon=True,
-    ).start()
+    if context.runtime == "service":
+        if context.os == "linux":
+            context.jellyfin_process = subprocess.Popen(
+                ["journalctl", "-u", context.service, "-f", "--no-pager"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+            threading.Thread(
+                target=_read_jellyfin_output,
+                args=(context,),
+                daemon=True,
+            ).start()
+
+        elif context.os == "windows":
+            log_dir = context.data_dir / "log"
+            log_file = max(
+                log_dir.glob("*.log"),
+                key=lambda path: path.stat().st_mtime,
+            )
+            threading.Thread(
+                target=_read_log_file,
+                args=(log_file,),
+                daemon=True,
+            ).start()
+
+    elif context.runtime == "container":
+        context.jellyfin_process = subprocess.Popen(
+            [
+                context.container_engine,
+                "logs", "-f", "--tail", "0",
+                context.container,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        threading.Thread(
+            target=_read_jellyfin_output,
+            args=(context,),
+            daemon=True,
+        ).start()
 
 def get_version(context):
     result = subprocess.run(
@@ -128,25 +161,19 @@ def get_version(context):
         capture_output=True,
         text=True,
     )
-
     output = result.stdout.strip() or result.stderr.strip()
-
     version = output.replace("Jellyfin.Server ", "")
-
     if version.endswith(".0"):
         version = version[:-2]
-
     return version
 
 def _refresh_sudo():
     while True:
-        time.sleep(300)  # 5 minutes
-
+        time.sleep(300)
         result = subprocess.run(
             ["sudo", "-n", "-v"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-
         if result.returncode != 0:
             break
