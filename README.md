@@ -1,7 +1,7 @@
 <h1 align="center">JellyLauncher</h1>
 
 <p align="center">
-<a href="https://github.com/XtronXI/jellylauncher/releases"><img src="https://img.shields.io/badge/version-2.1.0-blue.svg" alt="Version 2.1.0"/></a>
+<a href="https://github.com/XtronXI/jellylauncher/releases"><img src="https://img.shields.io/github/v/tag/xtronxi/jellylauncher.svg" alt="Latest Tag"/></a>
 <a href="https://github.com/XtronXI/jellylauncher"><img src="https://img.shields.io/badge/python-3.x-yellow.svg" alt="Python 3.x"/></a>
 <a href="https://github.com/XtronXI/jellylauncher/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License"/></a>
 </p>
