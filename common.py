@@ -1,4 +1,9 @@
-import hashlib, json, platform, re, uuid, argparse
+import argparse
+import hashlib
+import json
+import platform
+import re
+import uuid
 import xml.etree.ElementTree as ET
 from pathlib import Path, PureWindowsPath, PurePosixPath
 from modules.errors import ConfigError
@@ -50,13 +55,13 @@ def validate_config(config):
     for source, destination in config["paths"].items():
         if not isinstance(source, str):
             raise ConfigError(
-                f"Configuration key '{os_name}.paths' "
+                "Configuration key 'paths' "
                 "contains a non-string source path."
             )
 
         if not isinstance(destination, str):
             raise ConfigError(
-                f"Configuration key '{os_name}.paths' "
+                "Configuration key 'paths' "
                 "contains a non-string destination path."
             )
 

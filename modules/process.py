@@ -1,15 +1,19 @@
-import subprocess, requests, time, threading, signal
+import subprocess
+import threading
+import time
+
+import requests
 from modules import ui
 from modules.errors import ProcessError
 
 def is_running(context):
     try:
-        response = requests.get(
+        requests.get(
             context.server_url + "/System/Info/Public",
             timeout=1
         )
         return True
-    except requests.RequestException:   
+    except requests.RequestException:
         return False
 
 def stop(context):
@@ -42,7 +46,7 @@ def _read_jellyfin_output(context):
         ui.jellyfin_log(line.rstrip())
 
 def _read_log_file(path):
-    with path.open("r", encoding="utf-8", errors="replace",) as file:
+    with path.open("r", encoding="utf-8", errors="replace") as file:
         file.seek(0, 2)
         while True:
             line = file.readline()

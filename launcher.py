@@ -1,12 +1,14 @@
 from common import *
 from modules import process, migrate, ui
 from modules.errors import JellyLauncherError
-import time, threading
+import threading
+import time
 
 def main():
+    context = None
     try:
         args = parse_args()
-        context=initialize()
+        context = initialize()
         context.verbose = args.verbose
         context.jellyfin_version = process.get_version(context)
         steps = []
@@ -52,7 +54,7 @@ def main():
         if context.runtime == "manual":
             return
         ui.jellyfin_rule()
-        process.start(context)            
+        process.start(context)
         process.start_logs(context)
         threading.Thread(
             target=ui._key_listener,
@@ -69,7 +71,7 @@ def main():
         return
     except Exception:
         ui.end()
-        if context.verbose:
+        if context is not None and context.verbose:
             raise
         ui.show_error(
             "An unexpected error occurred. "

@@ -1,15 +1,21 @@
+import itertools
+import re
+import shutil
+import threading
+import time
+
+import readchar
+from rich.align import Align
 from rich.console import Console, Group
 from rich.live import Live
 from rich.panel import Panel
-from rich.text import Text
-from rich.table import Table
-from rich.align import Align
 from rich.rule import Rule
-import re, shutil, time, itertools, threading, readchar
+from rich.table import Table
+from rich.text import Text
 
 
-console=Console()
-ANSI_ESCAPE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+console = Console()
+ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 ascii_title = r"""
 [0;94;40m  ██[0;37;40m [0;94;40m███[0;37;40m [0;94;40m██  [0;37;40m [0;94;40m██  [0;37;40m [0;94;40m██[0;37;40m  [0;94;40m██[0;37;40m [0;94;40m██  [0;37;40m [0;94;40m██████[0;37;40m [0;94;40m██  ██[0;37;40m [0;94;40m██▌ █[0;37;40m [0;94;40m████[0;37;40m [0;94;40m██[0;37;40m  [0;94;40m██[0;37;40m [0;94;40m███[0;37;40m [0;94;40m███[0;37;40m [0m
 [0;94;40m  ██[0;37;40m [0;94;40m██ [0;37;40m [0;94;40m██  [0;37;40m [0;94;40m██  [0;37;40m [0;94;40m██[0;37;40m  [0;94;40m██[0;37;40m [0;94;40m██  [0;37;40m [0;94;40m██[0;37;40m  [0;94;40m██[0;37;40m [0;94;40m██  ██[0;37;40m [0;94;40m███ █[0;37;40m [0;94;40m██  [0;37;40m [0;94;40m██[0;37;40m  [0;94;40m██[0;37;40m [0;94;40m██ [0;37;40m [0;94;40m██▐▌[0m
