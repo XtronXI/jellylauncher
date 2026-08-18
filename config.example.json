@@ -2,10 +2,7 @@
     "server_url": "http://localhost:8096",
     "api_key": "YOUR_API_KEY",
     "paths": {
-        "WINDOWS_DATA_DIR": "LINUX_DATA_DIR",
-        "C:\\Path\\To\\Media\\Movies": "/path/to/media/Movies",
-        "C:\\Path\\To\\Media\\Anime": "/path/to/media/Anime",
-        "C:\\Path\\To\\Media\\Shows": "/path/to/media/Shows"
+        "C:\\": "/mnt/c_drive/",
     },
     "linux": {
         "runtime": "manual",

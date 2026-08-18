@@ -6,19 +6,23 @@
 <a href="https://github.com/XtronXI/jellylauncher/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License"/></a>
 </p>
 
-JellyLauncher is a launcher for the [Jellyfin](https://jellyfin.org) media server, designed for **dual-boot systems**. It lets a single Jellyfin instance, its database, and its metadata be shared between **Linux** and **Windows**. Every time you boot into the other operating system, JellyLauncher automatically migrates Jellyfin's on-disk state so both OSes keep working against the same data with no re-scanning, re-linking, or loss of watch history.
+JellyLauncher is a launcher for the [Jellyfin](https://jellyfin.org) media server, that lets you use the same metadata, database and all other data between Linux and Windows, without any corruption of data.
 
-![Preview](preview/preview.png)
-
-## Why a launcher?
-
-Jellyfin computes an item's ID (GUID) by hashing its **item type + absolute filesystem path**. Because media lives at different paths on each OS (for example `/path/to/media/Movies` on Linux vs `C:\Path\To\Media\Movies` on Windows), **every item's GUID changes whenever you switch operating systems**. A plain shared data folder is therefore not enough — without intervention:
+Jellyfin computes an item's ID (GUID) by hashing its **item type + absolute filesystem path**. Because media lives at different paths on each OS (similar to `/path/to/media/` on Linux vs `C:\Path\To\Media\` on Windows), **every item's GUID changes whenever you switch operating systems**. A plain shared data folder is therefore not enough — without intervention:
 
 - every reference to an item ID in the database breaks (watch state, playlists, favorites, collections),
 - on-disk metadata folders end up under GUID names that no longer match the database,
 - embedded paths in the database, XML configuration, and `.mblink` link files all point at the other OS's paths.
 
 JellyLauncher fixes all of this automatically, and only when it is actually needed.
+
+![Preview](preview/preview.png)
+
+### Why do I need this?
+
+You **probably** don't: This tool/launcher/script is useful if you dont need to turn on Jellyfin 24/7 and have it on a dual-boot device. This might be, really, over-specific, but considering the situation, its pretty useful. It allows you to switch between your OSes and do you work or whatever you like, at the same time, run Jellyfin.
+
+**Note**: This tool won't be useful if you're migrating between 2 systems *permanently* 
 
 ## Usage
 
@@ -29,7 +33,7 @@ JellyLauncher fixes all of this automatically, and only when it is actually need
 
 Both operating systems must point at the **same physical data directory**. This is a manual, one-time setup — the launcher does not create or move your data:
 
-- Put the Jellyfin data directory on a partition or drive that both OSes can read/write (NTFS is the usual choice on a dual-boot machine).
+- Let the Jellyfin data directory be on a partition or drive that both OSes can read/write (NTFS is the usual choice on a dual-boot machine).
 - Install Jellyfin on **both** operating systems.
 - Point each OS's Jellyfin install at the shared data directory (via `--datadir` in the start-up command or the service configuration).
 - Make sure the media library paths are reachable from both OSes and set up so that each OS sees them at equivalent locations.
@@ -132,3 +136,5 @@ The migration runs only when the configured data directory exists. If it doesn't
 This project is licensed under the **MIT License**.
 
 This project is an independent launcher and is not affiliated with the Jellyfin project. Jellyfin is a trademark of the Jellyfin project.
+
+**Note**: Some of the code (database migration) has been made by AI. 

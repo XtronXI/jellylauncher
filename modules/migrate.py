@@ -7,20 +7,6 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 
 def metadata(context):
-    """
-    Make the on-disk metadata library match the database's current GUIDs.
-
-    1. Rewrites stored metadata paths (e.g. BaseItemImageInfos.Path) so they
-       reference the active 'library' tree with a consistent {prefix}/{guid}
-       folder layout, repairing any broken paths left by earlier GUID rewrites.
-    2. Moves each migrated item's metadata folder from its old-GUID name
-       (searching the active tree and the parked linux_library/windows_library
-       trees) to its new-GUID name.
-
-    Idempotent: once folders live under their new names and paths are
-    consistent, later runs find nothing to do.
-    """
-
     ui.start("Migrating metadata")
     try:
         db = context.data_dir / "data" / "jellyfin.db"
@@ -33,8 +19,6 @@ def metadata(context):
 
         conn = sqlite3.connect(db)
         conn.row_factory = sqlite3.Row
-
-        # 1. Heal stored metadata paths in every TEXT cell.
         path_updates = 0
 
         for table in [r[0] for r in conn.execute(
@@ -63,7 +47,6 @@ def metadata(context):
 
         conn.commit()
 
-        # 2. Move metadata folders for items whose GUID differs between OSes.
         items = conn.execute("""
             SELECT Id, Type, Path
             FROM BaseItems
@@ -108,8 +91,6 @@ def metadata(context):
 
             source = None
 
-            # A folder may already carry the correct (new) GUID name but sit in
-            # a parked tree - relocate it into the active library.
             for tree in parked:
                 candidate = tree / new_n[:2] / new_n
 
@@ -117,7 +98,6 @@ def metadata(context):
                     source = candidate
                     break
 
-            # Otherwise find the old-GUID folder anywhere and rename + relocate.
             if source is None:
                 for tree in [library] + parked:
                     candidate = tree / old_n[:2] / old_n
@@ -193,38 +173,29 @@ def database(context, db=None):
 
         for table in tables:
             cur.execute(f'PRAGMA table_info("{table}")')
-
             for _, column, col_type, *_ in cur.fetchall():
-
                 if col_type.upper() != "TEXT":
                     continue
-
                 cur.execute(f'''
                     SELECT rowid, "{column}"
                     FROM "{table}"
                     WHERE "{column}" IS NOT NULL
                 ''')
-
                 rows = cur.fetchall()
-
                 for rowid, value in rows:
                     if not isinstance(value, str):
                         continue
-
                     if table == "BaseItems" and column == "Data":
                         new_value = _translate_data_json(value, context)
                     else:
                         new_value = translate(value, context)
-
                     if new_value == value:
                         continue
-
                     cur.execute(f'''
                         UPDATE "{table}"
                         SET "{column}" = ?
                         WHERE rowid = ?
                     ''', (new_value, rowid))
-
                     updates += 1
 
         conn.commit()
@@ -242,10 +213,6 @@ def database(context, db=None):
             ) from error
 
 def _translate_data_json(value, context):
-    """
-    Translate every path embedded inside a BaseItems.Data JSON blob.
-    translate() only modifies absolute paths, so other strings pass through.
-    """
     try:
         data = json.loads(value)
     except json.JSONDecodeError:
@@ -264,18 +231,6 @@ def _translate_data_json(value, context):
 
 
 def guids(context, db=None):
-    """
-    Recompute every item Id that changes when the shared Data folder moves
-    between operating systems, and rewrite all references across the database.
-
-    Only items whose filesystem path actually changes are migrated
-    (e.g. /path/to/media/... <-> C:\\Path\\To\\Media\\...). Internal items (root folders,
-    CollectionFolders, People/Genres/Studios) derive their Id from a
-    data-dir-relative key and are stable, so they are skipped.
-
-    Idempotent: a second run (or a run on the OS the paths already match)
-    produces no mappings and changes nothing.
-    """
     ui.start("Migrating GUIDs")
     try:
         db = Path(db) if db is not None else context.data_dir / "data" / "jellyfin.db"
@@ -288,8 +243,7 @@ def guids(context, db=None):
 
         try:
             rows = conn.execute("""
-                SELECT
-                    Id, Name, Type, Path, IndexNumber
+                SELECT Id, Name, Type, Path, IndexNumber
                 FROM BaseItems
                 WHERE Path IS NOT NULL
                 AND Path != ''
@@ -346,7 +300,6 @@ def guids(context, db=None):
         ) from error
 
 def _rewrite_references(conn, mapping):
-    """Rewrite GUID references in every table/column except BaseItems.Id."""
     updates = 0
 
     tables = [r[0] for r in conn.execute(
@@ -390,10 +343,6 @@ def _rewrite_references(conn, mapping):
 
 
 def _rewrite_baseitem_ids(conn, mapping):
-    """
-    Rewrite BaseItems.Id using a two-phase park so no new value can
-    collide with another row's Id during the update.
-    """
     all_ids = [normalize_guid(r[0]) for r in conn.execute("SELECT Id FROM BaseItems")]
     full = {guid: mapping.get(guid, guid) for guid in all_ids if guid is not None}
 
@@ -407,18 +356,6 @@ def _rewrite_baseitem_ids(conn, mapping):
 
 
 def _recompute_presentation_keys(conn, mapping):
-    """
-    Recompute PresentationUniqueKey and SeriesPresentationUniqueKey for
-    items whose Id (or whose owning Series) changed during the migration.
-
-    A regular item's key is its own Id in N-format (lowercase, no dashes);
-    a Season uses {series PUK}-{IndexNumber:000}; SeriesPresentationUniqueKey
-    is the owning Series' key.
-
-    Items not affected by the migration keep their existing keys, so
-    name-based keys (Person-<Name>, Genre-<Name>, Studio-<Name>) and any
-    other stable keys are preserved verbatim.
-    """
     changed_ids = set(mapping.values())
 
     rows = conn.execute("""
@@ -494,7 +431,6 @@ def _translate(element, context):
 
 def _deduplicate_options(tree):
     updates = 0
-
     root = tree.getroot()
     path_infos = root.find("PathInfos")
 
@@ -502,13 +438,10 @@ def _deduplicate_options(tree):
         return 0
 
     seen = set()
-
     for media_path in list(path_infos):
         path = media_path.find("Path")
-
         if path is None or path.text is None:
             continue
-
         if path.text in seen:
             path_infos.remove(media_path)
             updates += 1
@@ -535,6 +468,7 @@ def xml(context):
             if file_updates:
                 tree.write(xml_file, encoding="utf-8", xml_declaration=True)
                 updates += file_updates
+                ui.verbose(context, f"Updating {xml_file}")
 
         if updates:
             ui.verbose(context, f"Updated {updates} XML entries.")
