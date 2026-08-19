@@ -1,14 +1,6 @@
-class JellyLauncherError(Exception):
-    """Base exception for expected JellyLauncher errors."""
+# Error Handling, small but necessary to be here.
 
-
-class MigrationError(JellyLauncherError):
-    """A migration step failed."""
-
-
-class ProcessError(JellyLauncherError):
-    """A Jellyfin process operation failed."""
-
-
-class ConfigError(JellyLauncherError):
-    """The JellyLauncher configuration is invalid."""
+class JellyLauncherError(Exception): pass
+class MigrationError(JellyLauncherError): pass
+class ProcessError(JellyLauncherError): pass
+class ConfigError(JellyLauncherError): pass

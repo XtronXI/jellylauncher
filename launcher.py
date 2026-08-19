@@ -1,8 +1,7 @@
 from common import *
 from modules import process, migrate, ui
 from modules.errors import JellyLauncherError
-import threading
-import time
+import threading, time
 
 def main():
     context = None
@@ -11,7 +10,6 @@ def main():
         context = initialize()
         context.verbose = args.verbose
         context.jellyfin_version = process.get_version(context)
-        steps = []
 
         if args.stop:
             ui.begin(["Stopping Jellyfin"], title="JELLYFIN")
@@ -21,14 +19,12 @@ def main():
             return
 
         if context.os == "linux" and context.runtime == "service":
-            threading.Thread(
-                target=process._refresh_sudo,
-                daemon=True,
-            ).start()
+            threading.Thread(target=process._refresh_sudo, daemon=True).start()
 
         ui.show_header()
         ui.show_status(context)
-        steps.append("Stopping Jellyfin")
+
+        steps = ["Stopping Jellyfin"]
         if context.data_dir.exists():
             steps += [
                 "Migrating GUIDs",
@@ -42,6 +38,7 @@ def main():
 
         ui.begin(steps)
         process.stop(context)
+
         if context.data_dir.exists():
             migrate.guids(context)
             migrate.metadata(context)
@@ -49,17 +46,18 @@ def main():
             migrate.xml(context)
             migrate.mblink(context)
             time.sleep(1)
+
         ui.complete()
         ui.end()
+
         if context.runtime == "manual":
             return
+
         ui.jellyfin_rule()
         process.start(context)
         process.start_logs(context)
-        threading.Thread(
-            target=ui._key_listener,
-            daemon=True,
-        ).start()
+        threading.Thread(target=ui._key_listener, daemon=True).start()
+
         while True:
             if ui.stop_requested():
                 process.stop(context)
@@ -68,16 +66,11 @@ def main():
     except JellyLauncherError as error:
         ui.end()
         ui.show_error(error)
-        return
     except Exception:
         ui.end()
         if context is not None and context.verbose:
             raise
-        ui.show_error(
-            "An unexpected error occurred. "
-            "Run with --verbose for details.",
-        )
-        return
+        ui.show_error("An unexpected error occurred. Run with --verbose for details.")
 
 if __name__ == "__main__":
     main()

@@ -1,9 +1,4 @@
-import argparse
-import hashlib
-import json
-import platform
-import re
-import uuid
+import argparse, hashlib, json, platform, re, uuid
 import xml.etree.ElementTree as ET
 from pathlib import Path, PureWindowsPath, PurePosixPath
 from modules.errors import ConfigError
@@ -42,44 +37,24 @@ def validate_config(config):
 
     for key, expected_type in required.items():
         if key not in config:
-            raise ConfigError(
-                f"Missing required configuration key: {key}"
-            )
+            raise ConfigError(f"Missing required configuration key: {key}")
         if not isinstance(config[key], expected_type):
-            raise ConfigError(
-                f"Configuration key '{key}' must be "
-                f"{expected_type.__name__}."
-            )
+            raise ConfigError(f"Configuration key '{key}' must be {expected_type.__name__}.")
 
     for source, destination in config["paths"].items():
         if not isinstance(source, str):
-            raise ConfigError(
-                "Configuration key 'paths' "
-                "contains a non-string source path."
-            )
+            raise ConfigError("Configuration key 'paths' contains a non-string source path.")
         if not isinstance(destination, str):
-            raise ConfigError(
-                "Configuration key 'paths' "
-                "contains a non-string destination path."
-            )
+            raise ConfigError("Configuration key 'paths' contains a non-string destination path.")
 
     for os_name in ("linux", "windows"):
         os_config = config[os_name]
-        required_os = {
-            "data_dir": str,
-            "server_executable": str,
-        }
+        required_os = {"data_dir": str, "server_executable": str}
         for key, expected_type in required_os.items():
             if key not in os_config:
-                raise ConfigError(
-                    f"Missing required configuration key: "
-                    f"{os_name}.{key}"
-                )
+                raise ConfigError(f"Missing required configuration key: {os_name}.{key}")
             if not isinstance(os_config[key], expected_type):
-                raise ConfigError(
-                    f"Configuration key '{os_name}.{key}' must be "
-                    f"{expected_type.__name__}."
-                )
+                raise ConfigError(f"Configuration key '{os_name}.{key}' must be {expected_type.__name__}.")
 
 def initialize():
     context = Context()
@@ -90,9 +65,7 @@ def initialize():
     except FileNotFoundError:
         raise ConfigError("config.json was not found.")
     except json.JSONDecodeError as error:
-        raise ConfigError(
-            f"config.json contains invalid JSON: {error}"
-        ) from error
+        raise ConfigError(f"config.json contains invalid JSON: {error}") from error
 
     validate_config(context.config)
     system = platform.system()
@@ -120,39 +93,26 @@ def initialize():
     return context
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        prog="jellylauncher",
-        description="Migrate and launch Jellyfin.",
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Show detailed migration information",
-    )
-    parser.add_argument(
-        "--stop",
-        action="store_true",
-        help="Stop Jellyfin and exit.",
-    )
-
+    parser = argparse.ArgumentParser(prog="jellylauncher", description="Migrate and launch Jellyfin.")
+    parser.add_argument("--verbose", action="store_true", help="Show detailed migration information")
+    parser.add_argument("--stop", action="store_true", help="Stop Jellyfin and exit.")
     return parser.parse_args()
 
 def _read_case_sensitive(data_dir):
     config_file = Path(data_dir) / "config" / "system.xml"
-
     if not config_file.exists():
         return True
     try:
         tree = ET.parse(config_file)
         node = tree.getroot().find("EnableCaseSensitiveItemIds")
-
         if node is not None and node.text is not None:
             return node.text.strip().lower() == "true"
     except ET.ParseError:
         pass
     return True
 
-# OS to OS path translation
+# ---------------------------------- Path Translation ----------------------------------
+
 def translate(path, context):
     path = str(path)
     if (
@@ -192,23 +152,16 @@ def translate_reverse(path, context):
 
     return path
 
-# Jellyfin GUID replication
+# ------------------------------------ GUID Replication ------------------------------------
+
 def jellyfin_guid(item_type, path, program_data_path, case_sensitive=True):
     key = str(path)
     program_data_path = str(program_data_path)
-
     if key.startswith(program_data_path):
-        key = key[len(program_data_path):]
-        key = key.lstrip("/\\")
-        key = key.replace("/", "\\")
+        key = key[len(program_data_path):].lstrip("/\\").replace("/", "\\")
     if not case_sensitive:
         key = key.lower()
-    key = item_type + key
-    digest = hashlib.md5(
-        key.encode("utf-16le")
-    ).digest()
-
-    return uuid.UUID(bytes_le=digest)
+    return uuid.UUID(bytes_le=hashlib.md5((item_type + key).encode("utf-16le")).digest())
 
 def normalize_guid(value):
     if value is None:
@@ -218,20 +171,14 @@ def normalize_guid(value):
             value = value.decode("ascii")
         except UnicodeDecodeError:
             return None
-
     value = str(value).strip()
     try:
         return str(uuid.UUID(value)).upper()
     except (ValueError, AttributeError):
         return None
 
-
-_GUID_DASHED = re.compile(
-    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
-)
-_GUID_NODASH = re.compile(
-    r"(?<![0-9a-fA-F])[0-9a-fA-F]{32}(?![0-9a-fA-F])"
-)
+_GUID_DASHED = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+_GUID_NODASH = re.compile(r"(?<![0-9a-fA-F])[0-9a-fA-F]{32}(?![0-9a-fA-F])")
 _GUID_ANY = re.compile(
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
     r"|(?<![0-9a-fA-F])[0-9a-fA-F]{32}(?![0-9a-fA-F])"
@@ -248,27 +195,18 @@ _METADATA_LIBRARY = re.compile(
 def normalize_metadata_path(text):
     if not isinstance(text, str):
         return text
-
     def repl(match):
-        sep1 = match.group("sep1")
-        sep2 = match.group("sep2")
-        body = match.group("body")
-        return "library" + sep1 + body[:2] + sep2 + body
-
+        return "library" + match.group("sep1") + match.group("body")[:2] + match.group("sep2") + match.group("body")
     return _METADATA_LIBRARY.sub(repl, text)
 
-# UPPER-CASE
 def guid_tokens(text):
     if not isinstance(text, str):
         return
-
     for token in _GUID_DASHED.findall(text):
         yield str(uuid.UUID(token)).upper()
-
     for token in _GUID_NODASH.findall(text):
         yield str(uuid.UUID(token)).upper()
 
-#GUID re-write backbone
 def rewrite_guids_in_text(text, mapping):
     if not isinstance(text, str):
         return text
@@ -277,17 +215,10 @@ def rewrite_guids_in_text(text, mapping):
         token = match.group(0)
         canonical = str(uuid.UUID(token)).upper()
         replacement = mapping.get(canonical)
-
         if replacement is None:
             return token
-        if "-" in token:
-            result = replacement
-        else:
-            result = replacement.replace("-", "")
-        if token.islower():
-            return result.lower()
-
-        return result
+        result = replacement if "-" in token else replacement.replace("-", "")
+        return result.lower() if token.islower() else result
 
     if mapping:
         text = _GUID_ANY.sub(repl, text)
